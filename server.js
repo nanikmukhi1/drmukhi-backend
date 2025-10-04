@@ -17,7 +17,9 @@ function readAppointments() {
             return [];
         }
         const data = fs.readFileSync(APPOINTMENTS_FILE, 'utf8');
-        return JSON.parse(data);
+        // Ensure every appointment has a status
+        const appointments = JSON.parse(data);
+        return appointments.map(app => ({ status: 'Scheduled', ...app }));
     } catch (error) {
         console.error("Error reading appointments file:", error);
         return [];
@@ -27,7 +29,8 @@ function readAppointments() {
 function writeAppointments(data) {
     try {
         fs.writeFileSync(APPOINTMENTS_FILE, JSON.stringify(data, null, 2));
-    } catch (error) {
+    } catch (error)
+    {
         console.error("Error writing to appointments file:", error);
     }
 }
@@ -45,8 +48,9 @@ app.post('/api/appointments', (req, res) => {
     const appointments = readAppointments();
     const newAppointment = {
         ...req.body,
-        id: Date.now().toString(), // Use timestamp as a unique ID
-        timestamp: new Date().toISOString()
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        status: 'Scheduled' // Default status for new appointments
     };
     appointments.push(newAppointment);
     writeAppointments(appointments);
@@ -64,8 +68,8 @@ app.put('/api/appointments/:id', (req, res) => {
     if (appointmentIndex === -1) {
         return res.status(404).json({ message: 'Appointment not found' });
     }
-
-    // Preserve original ID and timestamp, update the rest
+    
+    // Update appointment, ensuring status is preserved if not provided
     appointments[appointmentIndex] = { 
         ...appointments[appointmentIndex], 
         ...updatedData 
@@ -74,6 +78,29 @@ app.put('/api/appointments/:id', (req, res) => {
     writeAppointments(appointments);
     res.json(appointments[appointmentIndex]);
 });
+
+// PATCH (Update status) of an existing appointment
+app.patch('/api/appointments/:id/status', (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    const validStatuses = ['Scheduled', 'Completed', 'Cancelled'];
+
+    if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({ message: 'Invalid status provided.' });
+    }
+
+    let appointments = readAppointments();
+    const appointmentIndex = appointments.findIndex(app => app.id === id);
+
+    if (appointmentIndex === -1) {
+        return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    appointments[appointmentIndex].status = status;
+    writeAppointments(appointments);
+    res.json(appointments[appointmentIndex]);
+});
+
 
 // DELETE an appointment by ID
 app.delete('/api/appointments/:id', (req, res) => {
