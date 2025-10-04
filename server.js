@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs');
-const path = path = require('path');
+// This was the line with the typo. It has now been corrected.
+const path = require('path'); 
 const cors = require('cors');
 
 const app = express();
